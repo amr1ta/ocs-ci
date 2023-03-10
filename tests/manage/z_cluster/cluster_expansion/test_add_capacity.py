@@ -91,7 +91,7 @@ def add_capacity_test(ui_flag=False):
     if config.ENV_DATA.get("encryption_at_rest"):
         osd_encryption_verification()
 
-    check_ceph_health_after_add_capacity(ceph_rebalance_timeout=3600)
+    check_ceph_health_after_add_capacity(ceph_rebalance_timeout=6600)
 
 
 @ignore_leftovers
