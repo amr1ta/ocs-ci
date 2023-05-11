@@ -191,6 +191,10 @@ deployment_4_12 = {
     "standard_csi_sc": ("standard-csi-link", By.ID),
 }
 
+deployment_4_13 = {
+    "nfs_enable_checkbox": ("enable-nfs", By.ID),
+}
+
 generic_locators = {
     "project_selector": (
         'button[class="pf-c-dropdown__toggle pf-m-plain"],'
@@ -1241,6 +1245,9 @@ validation_4_11 = {
         By.XPATH,
     ),
 }
+validation_4_13 = {
+    "nfs-tab": ("//*[@id='pf-tab-2-odf-dashboard-tab']/span", By.XPATH),
+}
 
 
 locators = {
@@ -1256,6 +1263,7 @@ locators = {
             **deployment_4_10,
             **deployment_4_11,
             **deployment_4_12,
+            **deployment_4_13,
         },
         "validation": {
             **validation,
@@ -1263,6 +1271,7 @@ locators = {
             **validation_4_9,
             **validation_4_10,
             **validation_4_11,
+            **validation_4_13,
         },
         "obc": obc,
         "pvc": {**pvc, **pvc_4_7, **pvc_4_8, **pvc_4_9, **pvc_4_12},

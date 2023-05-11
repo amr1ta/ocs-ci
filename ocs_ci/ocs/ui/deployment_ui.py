@@ -115,7 +115,7 @@ class DeploymentUI(PageNavigator):
             )
             self.verify_operator_succeeded(operator="Local Storage")
 
-    def install_storage_cluster(self):
+    def install_storage_cluster(self, enable_nfs=False):
         """
         Install StorageCluster/StorageSystem
 
@@ -159,7 +159,7 @@ class DeploymentUI(PageNavigator):
         elif config.DEPLOYMENT.get("local_storage"):
             self.install_lso_cluster()
         else:
-            self.install_internal_cluster()
+            self.install_internal_cluster(enable_nfs=enable_nfs)
 
     def install_mcg_only_cluster(self):
         """
@@ -260,7 +260,7 @@ class DeploymentUI(PageNavigator):
 
         self.create_storage_cluster()
 
-    def install_internal_cluster(self):
+    def install_internal_cluster(self, enable_nfs=False):
         """
         Install Internal Cluster
 
@@ -282,6 +282,11 @@ class DeploymentUI(PageNavigator):
             enable_screenshot=True,
             copy_dom=True,
         )
+        if enable_nfs:
+            logger.info("Select enable nfs checkbox")
+            self.select_checkbox_status(
+                status=True, locator=self.dep_loc["nfs_enable_checkbox"]
+            )
 
         if self.operator_name == ODF_OPERATOR:
             self.do_click(locator=self.dep_loc["next"], enable_screenshot=True)
@@ -446,7 +451,7 @@ class DeploymentUI(PageNavigator):
                 self.dep_loc["choose_openshift-storage_project"], enable_screenshot=True
             )
 
-    def install_ocs_ui(self):
+    def install_ocs_ui(self, enable_nfs=False):
         """
         Install OCS/ODF via UI.
 
@@ -457,4 +462,4 @@ class DeploymentUI(PageNavigator):
         self.install_local_storage_operator()
         self.install_ocs_operator()
         if not config.UPGRADE.get("ui_upgrade"):
-            self.install_storage_cluster()
+            self.install_storage_cluster(enable_nfs=enable_nfs)

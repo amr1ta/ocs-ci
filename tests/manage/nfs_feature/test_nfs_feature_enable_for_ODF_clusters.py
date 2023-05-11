@@ -5,7 +5,7 @@ import yaml
 import os
 
 
-from ocs_ci.utility import nfs_utils
+from ocs_ci.utility import nfs_utils, version
 from ocs_ci.framework import config
 from ocs_ci.utility.connection import Connection
 from ocs_ci.ocs import constants, ocp
@@ -27,11 +27,15 @@ from ocs_ci.framework.testlib import (
 from ocs_ci.ocs.resources import pod, ocs
 from ocs_ci.utility.retry import retry
 from ocs_ci.ocs.exceptions import CommandFailed
-
+from ocs_ci.ocs.ui.validation_ui import ValidationUI
+from ocs_ci.ocs.ui.nfs_ui import nfsUI
+from ocs_ci.ocs.exceptions import UnexpectedODFAccessException
 
 log = logging.getLogger(__name__)
 # Error message to look in a command output
 ERRMSG = "Error in command"
+OCS_VERSION = version.get_ocs_version_from_csv(only_major_minor=True)
+log.info(f"ocs version is, {OCS_VERSION}")
 
 
 @tier1
@@ -64,6 +68,14 @@ class TestDefaultNfsDisabled(ManageTest):
             log.info("No resources found in openshift-storage namespace.")
         else:
             log.error("nfs feature is enabled by default")
+
+        if OCS_VERSION >= version.VERSION_4_13:
+            # Check Network file system tab is unavailable when nfs is disabled from ODf4.13
+            nfs_tab_availability = nfsUI.nfs_page_available_at_webconsole(self)
+            log.info(f"nfs tab :   {nfs_tab_availability}")
+            assert (
+                not nfs_tab_availability
+            ), "Error: Network filesystem tab is available "
 
 
 @skipif_external_mode
@@ -203,6 +215,11 @@ class TestNfsEnable(ManageTest):
             "get CephNFS ocs-storagecluster-cephnfs --output jsonpath='{.status.phase}'"
         )
         assert cephnfs_resource_status == "Ready"
+
+        if OCS_VERSION >= version.VERSION_4_13:
+            # Check Network file system tab is unavailable when nfs is disabled from ODf4.13
+            nfs_tab_availability = nfsUI.nfs_page_available_at_webconsole()
+            assert nfs_tab_availability, "Error: Network filesystem tab is unavailable "
 
     @tier1
     @polarion_id("OCS-4272")
@@ -1389,3 +1406,192 @@ class TestNfsEnable(ManageTest):
 
         log.info("Check nfs pv is deleted")
         pv_obj.ocp.wait_for_delete(resource_name=pv_obj.name, timeout=180)
+
+    @skipif_ocs_version("<4.13")
+    @skipif_ocp_version("<4.13")
+    def test_nfs_volume_cloning_expansion_snapshot_PVs(
+        self,
+        pod_factory,
+        pvc_clone_factory,
+        snapshot_factory,
+    ):
+        """
+        This test is to validate creation of multiple NFS based PVs and verify the creation of
+        NFS exports in NFS ganesha server
+
+        Steps:
+        1:- Create nfs pvcs with storageclass ocs-storagecluster-ceph-nfs
+        2:- Clone nfs pvc
+        3:- Create nginx pod with cloned nfs pvcs mounted
+        4:- Expand nfs pvc
+        5:- Create nginx pod with expanded nfs pvcs mounted
+        6:- Create snapshot of nfs pvc
+        7:- Create nginx pod with snapshot of nfs pvcs mounted
+        8:- Run IO
+        9:- Wait for IO completion
+        10:- Verify presence of the file
+        11:- Deletion of Pods and PVCs
+        12:- Delete nfs snapshot
+
+        """
+        pod_objs = []
+
+        # Create nfs pvcs with storageclass ocs-storagecluster-ceph-nfs
+        nfs_pvc_obj = helpers.create_pvc(
+            sc_name=self.nfs_sc,
+            namespace=self.namespace,
+            size="4Gi",
+            do_reload=True,
+            access_mode=constants.ACCESS_MODE_RWO,
+            volume_mode="Filesystem",
+        )
+
+        # Clone nfs pvc
+        cloned_nfs_pvc_obj = pvc_clone_factory(
+            nfs_pvc_obj,
+            volume_mode=constants.VOLUME_MODE_FILESYSTEM,
+            storageclass=self.nfs_sc,
+        )
+
+        # Create nginx pod with cloned nfs pvcs mounted
+        pod_obj1 = pod_factory(
+            interface=constants.CEPHFILESYSTEM,
+            pvc=cloned_nfs_pvc_obj,
+            status=constants.STATUS_RUNNING,
+        )
+        pod_objs.append(pod_obj1)
+
+        # Expand nfs pvc
+        log.info(f"Starting expanding PVC size to 5Gi")
+        nfs_pvc_obj.pvc_expansion(
+            pvc_new_size="5Gi",
+            wait_time=45,
+        )
+        # Create nginx pod with expanded nfs pvcs mounted
+        pod_obj2 = pod_factory(
+            interface=constants.CEPHFILESYSTEM,
+            pvc=nfs_pvc_obj,
+            status=constants.STATUS_RUNNING,
+        )
+        pod_objs.append(pod_obj2)
+
+        # Create snapshot of nfs pvc
+        nfs_snap_obj = snapshot_factory(nfs_pvc_obj, wait=True)
+
+        for pod_obj in pod_objs:
+            file_name = pod_obj.name
+            # Run IO
+            pod_obj.run_io(
+                storage_type="fs",
+                size="4G",
+                fio_filename=file_name,
+                runtime=60,
+            )
+            log.info("IO started on all pods")
+
+            # Wait for IO completion
+            fio_result = pod_obj.get_fio_results()
+            log.info("IO completed on all pods")
+            err_count = fio_result.get("jobs")[0].get("error")
+            assert err_count == 0, (
+                f"IO error on pod {pod_obj.name}. " f"FIO result: {fio_result}"
+            )
+            # Verify presence of the file
+            file_path = pod.get_file_path(pod_obj, file_name)
+            log.info(f"Actual file path on the pod {file_path}")
+            assert pod.check_file_existence(
+                pod_obj, file_path
+            ), f"File {file_name} doesn't exist"
+            log.info(f"File {file_name} exists in {pod_obj.name}")
+
+            # Deletion of Pods and PVCs
+            log.info("Deleting pod")
+            pod_obj.delete()
+            pod_obj.ocp.wait_for_delete(
+                pod_obj.name, 180
+            ), f"Pod {pod_obj.name} is not deleted"
+
+        pvc_objs = [nfs_pvc_obj, cloned_nfs_pvc_obj]
+        for pvc_obj in pvc_objs:
+            pv_obj = pvc_obj.backed_pv_obj
+            log.info(f"pv object-----{pv_obj}")
+
+            log.info("Deleting PVC")
+            pvc_obj.delete()
+            pvc_obj.ocp.wait_for_delete(
+                resource_name=pvc_obj.name
+            ), f"PVC {pvc_obj.name} is not deleted"
+            log.info(f"Verified: PVC {pvc_obj.name} is deleted.")
+
+            log.info("Check nfs pv is deleted")
+            pv_obj.ocp.wait_for_delete(resource_name=pv_obj.name, timeout=180)
+
+            # Delete nfs snapshot
+            nfs_snap_obj.delete()
+            nfs_snap_obj.ocp.wait_for_delete(resource_name=nfs_snap_obj.name)
+
+    @skipif_ocs_version("<4.13")
+    @skipif_ocp_version("<4.13")
+    def test_nfs_dashboard_unavailable_for_unprivileged_users(
+        self,
+        user_factory,
+        login_factory,
+    ):
+        """
+        To validate for nfs enabled unprivileged user is unable to see
+        additional tab "Network file system" under “Storage > Data Foundation
+        """
+        # create a user without any role
+        user = user_factory()
+        log.info(f"user created: {user[0]} password: {user[1]}")
+
+        # login with the user created
+        login_factory(user[0], user[1])
+        validation_ui_obj = ValidationUI()
+        try:
+            validation_ui_obj.validate_unprivileged_access()
+        except UnexpectedODFAccessException:
+            assert False, "Unexpected, unprivileged users can access ODF dashboard"
+
+
+@tier1
+@skipif_ocs_version("<4.13")
+@skipif_ocp_version("<4.13")
+@skipif_managed_service
+@skipif_disconnected_cluster
+@skipif_proxy_cluster
+@polarion_id("OCS-4270")
+class TestNfsEnablefromUI(ManageTest):
+    """
+    Test nfs enable from UI
+
+    """
+
+    def test_nfs_enabled_from_UI(
+        self,
+        pod_obj,
+    ):
+        """
+        This test is to Validate nfs enable checkbox available
+        during creation of storagesystem for ODF4.13 internal mode from web console.
+
+        Steps:
+        1:- Check nfs enable checkbox during storage cluster creation
+        2:- Verify nfs tab is available under “Storage > Data Foundation > Overview
+        3:- Verify nfs-ganesha pod is up and running
+
+        """
+        nfsUI.enable_nfs_from_ui()
+
+        # Verify nfs tab is available under “Storage > Data Foundation > Overview
+        nfs_tab_availability = nfsUI.nfs_page_available_at_webconsole()
+        assert nfs_tab_availability, "Error: Network filesystem tab unavailable "
+
+        # Verify nfs-ganesha pod is up and running
+        assert pod_obj.wait_for_resource(
+            resource_count=1,
+            condition=constants.STATUS_RUNNING,
+            selector="app=rook-ceph-nfs",
+            dont_allow_other_resources=True,
+            timeout=60,
+        )

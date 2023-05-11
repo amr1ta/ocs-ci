@@ -1731,6 +1731,23 @@ class StorageSystemDetails(StorageSystemTab):
         BaseUI.navigate_backward(self)
         return StorageSystemTab()
 
+    def nav_network_file_system(self):
+        """
+        Accessible only at StorageSystems / StorageSystem details / Network file system page
+        only when nfs is enabled from ODF 4.13
+
+        """
+        logger.info("Click on 'Network file system' tab")
+        nfs_tab_availability = webdriver.find_element_by_xpath(
+            "//*[@id='pf-tab-2-odf-dashboard-tab']/span"
+        )
+        if nfs_tab_availability:
+            logger.info("Network file system page is available")
+            self.do_click(self.validation_loc["nfs-tab"], enable_screenshot=True)
+        else:
+            assert False, "Network file system page is unavailable"
+        return nfs_tab_availability
+
 
 class BlockPools(StorageSystemDetails, CreateResourceForm):
     def __init__(self):
