@@ -1247,6 +1247,10 @@ validation_4_11 = {
 }
 validation_4_13 = {
     "nfs-tab": ("//*[@id='pf-tab-2-odf-dashboard-tab']/span", By.XPATH),
+    "nfs-server-status": (
+        "//*[@id='pf-tab-section-2-odf-dashboard-tab']//article/div[1]/div",
+        By.XPATH,
+    ),
 }
 
 

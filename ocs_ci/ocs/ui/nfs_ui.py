@@ -45,7 +45,6 @@ class nfsUI(PageNavigator):
             .nav_storagecluster_storagesystem_details()
         )
         storage_system_details.nav_details_overview()
-        storage_system_details.nav_details_object()
         logger.info(
             f"----Execute till here-----storage system details : {storage_system_details}"
         )

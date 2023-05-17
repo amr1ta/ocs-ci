@@ -1737,16 +1737,23 @@ class StorageSystemDetails(StorageSystemTab):
         only when nfs is enabled from ODF 4.13
 
         """
-        logger.info("Click on 'Network file system' tab")
-        nfs_tab_availability = webdriver.find_element_by_xpath(
-            "//*[@id='pf-tab-2-odf-dashboard-tab']/span"
+        wait_for_nfs_tab = self.wait_until_expected_text_is_found(
+            locator=self.validation_loc["nfs-tab"],
+            expected_text="Network file system",
+            timeout=10,
         )
-        if nfs_tab_availability:
-            logger.info("Network file system page is available")
+        logger.info(f"nfs tab is..... : {wait_for_nfs_tab}")
+        if wait_for_nfs_tab:
             self.do_click(self.validation_loc["nfs-tab"], enable_screenshot=True)
-        else:
-            assert False, "Network file system page is unavailable"
-        return nfs_tab_availability
+            logger.info("'Network file system' tab is available")
+            _ = self.wait_until_expected_text_is_found(
+                locator=self.validation_loc["nfs-server-status"],
+                expected_text="Server health",
+                timeout=10,
+            )
+            self.take_screenshot()
+            logger.info(f"page loaded: {self.driver.current_url}")
+        return wait_for_nfs_tab
 
 
 class BlockPools(StorageSystemDetails, CreateResourceForm):
