@@ -239,7 +239,10 @@ class PVC(OCS):
             snapshotclass = helpers.default_volumesnapshotclass(
                 constants.CEPHBLOCKPOOL
             ).name
-        elif self.provisioner == "openshift-storage.cephfs.csi.ceph.com":
+        elif (
+            self.provisioner == "openshift-storage.cephfs.csi.ceph.com"
+            or "openshift-storage.nfs.csi.ceph.com"
+        ):
             snap_yaml = constants.CSI_CEPHFS_SNAPSHOT_YAML
             snapshotclass = helpers.default_volumesnapshotclass(
                 constants.CEPHFILESYSTEM

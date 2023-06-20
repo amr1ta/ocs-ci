@@ -164,9 +164,9 @@ class TestNfsEnable(ManageTest):
         )
 
         # # Create loadbalancer service for nfs
-        # self.hostname_add = nfs_utils.create_nfs_load_balancer_service(
-        #     self.storage_cluster_obj,
-        # )
+        self.hostname_add = nfs_utils.create_nfs_load_balancer_service(
+            self.storage_cluster_obj,
+        )
         yield
 
         log.info("-----Teardown-----")
@@ -219,7 +219,7 @@ class TestNfsEnable(ManageTest):
 
         if OCS_VERSION >= version.VERSION_4_13:
             nfs_ui_obj = nfsUI()
-            # Check Network file system tab is unavailable when nfs is disabled from ODf4.13
+            # Check Network file system tab is available when nfs is enabled from ODf4.13
             nfs_tab_availability = nfs_ui_obj.nfs_page_available_at_webconsole()
             assert nfs_tab_availability, "Error: Network filesystem tab is unavailable "
 
@@ -1568,10 +1568,8 @@ class TestNfsEnable(ManageTest):
 
         # Expand nfs pvc
         log.info(f"Starting expanding PVC size to 5Gi")
-        nfs_pvc_obj.pvc_expansion(
-            pvc_new_size="5Gi",
-            wait_time=45,
-        )
+        nfs_pvc_obj.resize_pvc(new_size=5, verify=True)
+
         # Create nginx pod with expanded nfs pvcs mounted
         pod_obj2 = pod_factory(
             interface=constants.CEPHFILESYSTEM,

@@ -1459,6 +1459,7 @@ OCS_PROVISIONERS = [
     "openshift-storage.noobaa.io/obc",
     "topolvm.cybozu.com",
     "topolvm.io",
+    "openshift-storage.nfs.csi.ceph.com",
 ]
 RBD_PROVISIONER = "openshift-storage.rbd.csi.ceph.com"
 

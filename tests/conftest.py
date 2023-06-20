@@ -4253,7 +4253,10 @@ def pvc_clone_factory_fixture(request):
         if pvc_obj.provisioner == "openshift-storage.rbd.csi.ceph.com":
             clone_yaml = constants.CSI_RBD_PVC_CLONE_YAML
             interface = constants.CEPHBLOCKPOOL
-        elif pvc_obj.provisioner == "openshift-storage.cephfs.csi.ceph.com":
+        elif (
+            pvc_obj.provisioner == "openshift-storage.cephfs.csi.ceph.com"
+            or pvc_obj.provisioner == "openshift-storage.nfs.csi.ceph.com"
+        ):
             clone_yaml = constants.CSI_CEPHFS_PVC_CLONE_YAML
             interface = constants.CEPHFILESYSTEM
         elif pvc_obj.provisioner in [
