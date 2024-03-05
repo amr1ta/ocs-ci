@@ -353,6 +353,26 @@ class ODFAndNativeStorageClientDeploymentOnProvider(object):
             resource_count=1,
             timeout=300,
         )
+        self.pod_obj.wait_for_resource(
+            condition=constants.STATUS_RUNNING,
+            selector=constants.PROVIDER_SERVER_LABEL,
+            resource_count=1,
+            timeout=300,
+        )
+        self.pod_obj.wait_for_resource(
+            condition=constants.STATUS_RUNNING,
+            selector=constants.RGW_APP_LABEL,
+            resource_count=1,
+            timeout=300,
+        )
+        list_of_rgw_pods = pod.get_rgw_pods(
+            namespace=constants.OPENSHIFT_STORAGE_NAMESPACE
+        )
+        restart_count_for_rgw_pod = pod.get_pod_restarts_count(
+            list_of_pods=list_of_rgw_pods,
+            namespace=constants.OPENSHIFT_STORAGE_NAMESPACE,
+        )
+        log.info(f"restart count for rgw pod is: {restart_count_for_rgw_pod}")
 
         # Check ocs-storagecluster is in 'Ready' status
         log.info("Verify storagecluster on Ready state")
