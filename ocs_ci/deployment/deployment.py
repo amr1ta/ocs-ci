@@ -153,6 +153,9 @@ from ocs_ci.ocs.ui.helpers_ui import ui_deployment_conditions
 from ocs_ci.utility.utils import get_az_count
 from ocs_ci.utility.ibmcloud import run_ibmcloud_cmd
 from ocs_ci.deployment.cnv import CNVInstaller
+from ocs_ci.deployment.provider_client.storage_client_deployment import (
+    TestStorageClientDeployment,
+)
 
 
 logger = logging.getLogger(__name__)
