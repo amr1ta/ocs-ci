@@ -658,8 +658,13 @@ class ValidationUI(PageNavigator):
 
         """
         self.refresh_web_console()
+<<<<<<< HEAD
         storage_client_obj = self.nav_to_storageclients_page()
         strings_storage_clients_tab = ["Storage clients", "Name"]
+=======
+        self.navigate_to_storageclients_page()
+        strings_storage_clients_tab = ["Storage clients"]
+>>>>>>> 06f4d785 (Updated provider_and_native_client_installation method)
         self.verify_page_contain_strings(
             strings_on_page=strings_storage_clients_tab, page_name="storage clients"
         )
@@ -675,4 +680,23 @@ class ValidationUI(PageNavigator):
             strings_on_page=strings_object_service_tab,
             page_name="client_onboarding_token_page",
         )
+<<<<<<< HEAD
         return storage_client_obj
+=======
+
+    def verify_onboarding_token_generation_from_ui(self):
+        """
+        Verify onboarding token generation for client onboarding from Storage Clients page
+
+        Returns:
+        onboarding_token(str): client onboarding token
+
+        """
+        self.verify_storage_clients_page()
+        onboarding_token = self.find_an_element_by_xpath(
+            "//*[@class='odf-onboarding-modal__text-area']"
+        ).text
+        logger.info(f"Onboarding token generated successfully: {onboarding_token}")
+
+        return onboarding_token
+>>>>>>> 06f4d785 (Updated provider_and_native_client_installation method)
