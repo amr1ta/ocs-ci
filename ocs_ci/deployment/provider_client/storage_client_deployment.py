@@ -370,12 +370,12 @@ class ODFAndNativeStorageClientDeploymentOnProvider(object):
             timeout=300,
         )
         list_of_rgw_pods = pod.get_rgw_pods(
-            namespace=constants.OPENSHIFT_STORAGE_NAMESPACE
+            namespace=config.ENV_DATA["cluster_namespace"]
         )
         rgw_pod_obj = list_of_rgw_pods[0]
         restart_count_for_rgw_pod = pod.get_pod_restarts_count(
             list_of_pods=list_of_rgw_pods,
-            namespace=constants.OPENSHIFT_STORAGE_NAMESPACE,
+            namespace=config.ENV_DATA["cluster_namespace"],
         )
         rgw_pod_restart_count = restart_count_for_rgw_pod[rgw_pod_obj.name]
         log.info(f"restart count for rgw pod is: {rgw_pod_restart_count}")
