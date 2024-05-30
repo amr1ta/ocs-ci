@@ -36,9 +36,7 @@ from ocs_ci.helpers.helpers import (
 from ocs_ci.ocs.exceptions import CommandFailed
 from ocs_ci.helpers.managed_services import (
     verify_storageclient,
-    # verify_storageclient_storageclass_claims,
 )
-
 
 log = logging.getLogger(__name__)
 
