@@ -238,12 +238,12 @@ class ODFAndNativeStorageClientDeploymentOnProvider(object):
                 constants.DEFAULT_BLOCKPOOL
             ), f"{constants.DEFAULT_BLOCKPOOL} is not created"
             assert (
-                self.rados_utils.verify_cephblockpool_status()
+                verify_cephblockpool_status()
             ), "the cephblockpool is not in Ready phase"
 
             # Validate radosnamespace created and in 'Ready' status
             assert (
-                self.rados_utils.check_phase_of_rados_namespace()
+                check_phase_of_rados_namespace()
             ), "The radosnamespace is not in Ready phase"
 
             # Validate storageclassrequests created
