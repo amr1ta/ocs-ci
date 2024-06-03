@@ -3,7 +3,6 @@ Storage client related functions
 """
 import logging
 import tempfile
-import time
 
 
 from ocs_ci.framework import config
@@ -419,6 +418,27 @@ class StorageClient:
             # Create network policy
             network_policy_data_yaml = tempfile.NamedTemporaryFile(
                 mode="w+", prefix="network_policy", delete=False
+            )
+
+            log.info(f"Updating storageclaim name: {storageclaim_name}")
+            storage_classclaim_data["metadata"]["name"] = storageclaim_name
+
+            log.info(f"Updating storageclient name: {storage_client_name}")
+            storage_classclaim_data["spec"]["storageClient"][
+                "name"
+            ] = storage_client_name
+
+            log.info(f"Updating namespace: {namespace_of_storageclient}")
+            storage_classclaim_data["spec"]["storageClient"][
+                "namespace"
+            ] = namespace_of_storageclient
+
+            log.info(f"Updating storageclaim type: {type}")
+            storage_classclaim_data["spec"]["type"] = type
+
+            # Create storageclassclaim
+            storage_classclaim_data_yaml = tempfile.NamedTemporaryFile(
+                mode="w+", prefix="storage_classclaim", delete=False
             )
             templating.dump_data_to_temp_yaml(
                 network_policy_data, network_policy_data_yaml.name
