@@ -34,9 +34,7 @@ from ocs_ci.helpers.helpers import (
     verify_block_pool_exists,
 )
 from ocs_ci.ocs.exceptions import CommandFailed
-from ocs_ci.helpers.managed_services import (
-    verify_storageclient,
-)
+
 
 log = logging.getLogger(__name__)
 

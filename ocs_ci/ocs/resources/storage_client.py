@@ -3,6 +3,7 @@ Storage client related functions
 """
 import logging
 import tempfile
+import time
 
 
 from ocs_ci.framework import config
