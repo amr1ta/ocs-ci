@@ -81,6 +81,14 @@ class ODFAndNativeStorageClientDeploymentOnProvider(object):
         self.deployment = Deployment()
         self.storage_clients = StorageClient()
 
+    @pytest.hookimpl(trylast=True)
+    def cleanup_function(self):
+        log.info("cleanup_function called at exit.")
+        # Remove debug namespace
+        self.ns_obj.delete_project(project_name=constants.BM_DEBUG_NODE_NS)
+        # Close browser
+        close_browser()
+
     def provider_and_native_client_installation(
         self,
     ):
