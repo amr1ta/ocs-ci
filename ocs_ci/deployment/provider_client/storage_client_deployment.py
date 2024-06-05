@@ -81,7 +81,6 @@ class ODFAndNativeStorageClientDeploymentOnProvider(object):
         self.deployment = Deployment()
         self.storage_clients = StorageClient()
 
-    @pytest.hookimpl(trylast=True)
     def cleanup_function(self):
         log.info("cleanup_function called at exit.")
         # Remove debug namespace
