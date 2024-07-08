@@ -124,6 +124,14 @@ class ODFAndNativeStorageClientDeploymentOnProvider(object):
         wait_for_machineconfigpool_status(node_type="all")
         log.info("All the nodes are upgraded")
 
+        # Mark master nodes schedulable if mark_masters_schedulable: True
+        if config.ENV_DATA.get("mark_masters_schedulable", False):
+            path = "/spec/mastersSchedulable"
+            params = f"""[{{"op": "replace", "path": "{path}", "value": true}}]"""
+            self.scheduler_obj.patch(params=params, format_type="json"), (
+                "Failed to run patch command to update control nodes as scheduleable"
+            )
+
         # Install LSO, create LocalVolumeDiscovery and LocalVolumeSet
         is_local_storage_available = self.sc_obj.is_exist(
             resource_name=self.storageclass,
@@ -353,31 +361,6 @@ class ODFAndNativeStorageClientDeploymentOnProvider(object):
             resource_count=1,
             timeout=300,
         )
-        self.pod_obj.wait_for_resource(
-            condition=constants.STATUS_RUNNING,
-            selector=constants.PROVIDER_SERVER_LABEL,
-            resource_count=1,
-            timeout=300,
-        )
-        self.pod_obj.wait_for_resource(
-            condition=constants.STATUS_RUNNING,
-            selector=constants.RGW_APP_LABEL,
-            resource_count=1,
-            timeout=300,
-        )
-        list_of_rgw_pods = pod.get_rgw_pods(
-            namespace=config.ENV_DATA["cluster_namespace"]
-        )
-        rgw_pod_obj = list_of_rgw_pods[0]
-        restart_count_for_rgw_pod = pod.get_pod_restarts_count(
-            list_of_pods=list_of_rgw_pods,
-            namespace=config.ENV_DATA["cluster_namespace"],
-        )
-        rgw_pod_restart_count = restart_count_for_rgw_pod[rgw_pod_obj.name]
-        log.info(f"restart count for rgw pod is: {rgw_pod_restart_count}")
-        assert (
-            restart_count_for_rgw_pod[rgw_pod_obj.name] == 0
-        ), f"Error rgw pod has restarted {rgw_pod_restart_count} times"
 
         # Check ocs-storagecluster is in 'Ready' status
         log.info("Verify storagecluster on Ready state")

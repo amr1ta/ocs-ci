@@ -15,6 +15,7 @@ from ocs_ci.utility.retry import retry
 from ocs_ci.helpers.managed_services import (
     get_all_storageclassclaims,
 )
+from ocs_ci.ocs.resources.ocs import get_ocs_csv
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +34,53 @@ class StorageClient:
         self.storage_client_obj = ocp.OCP(kind="storageclient")
         self.ocp_version = version.get_semantic_ocp_version_from_config()
         self.ocs_version = version.get_semantic_ocs_version_from_config()
+
+    # def get_client_ocs_csv(self, namespace=None):
+    #     """
+    #     Get the OCS CSV object for client operator
+
+    #     Returns:
+    #         CSV: client_ocs csv object
+
+    #     Raises:
+    #         CSVNotFound: In case no CSV found.
+
+    #     """
+    #     if not namespace:
+    #         namespace = config.ENV_DATA["cluster_namespace"]
+
+    #     # operator_base = constants.OCS_CLIENT_OPERATOR
+    #     operator_name = constants.OCS_CLIENT_OPERATOR
+    #     operator = ocp.OCP(kind="operator", resource_name=operator_name)
+
+    #     if "Error" in operator.data:
+    #         raise CSVNotFound(f"{operator_name} is not found, csv check will be skipped")
+    #     operator_selector = get_selector_for_ocs_operator()
+    #     subscription_plan_approval = config.DEPLOYMENT.get("subscription_plan_approval")
+    #     ocs_package_manifest = PackageManifest(
+    #         resource_name=defaults.OCS_OPERATOR_NAME,
+    #         selector=operator_selector,
+    #         subscription_plan_approval=subscription_plan_approval,
+    #     )
+    #     channel = config.DEPLOYMENT.get("ocs_csv_channel")
+    #     ocs_csv_name = None
+    #     # OCS CSV is extracted from the available CSVs in cluster namespace
+    #     # for Openshift dedicated platform
+    #     if config.ENV_DATA["platform"].lower() in constants.HCI_PC_OR_MS_PLATFORM:
+    #         ocp_cluster = OCP(namespace=config.ENV_DATA["cluster_namespace"], kind="csv")
+    #         for item in ocp_cluster.get()["items"]:
+    #             if item["metadata"]["name"].startswith(defaults.OCS_OPERATOR_NAME) or item[
+    #                 "metadata"
+    #             ]["name"].startswith(constants.OCS_CLIENT_OPERATOR):
+    #                 ocs_csv_name = item["metadata"]["name"]
+    #         if not ocs_csv_name:
+    #             raise CSVNotFound(f"No OCS CSV found for {config.ENV_DATA['platform']}")
+    #     else:
+    #         ocs_csv_name = ocs_package_manifest.get_current_csv(channel=channel)
+    #     client_ocs_csv = CSV(resource_name=ocs_csv_name, namespace=namespace)
+    #     log.info(f"Check if OCS operator: {ocs_csv_name} is in Succeeded phase.")
+    #     client_ocs_csv.wait_for_phase(phase="Succeeded", timeout=600)
+    #     return client_ocs_csv
 
     def odf_installation_on_client(
         self,
@@ -420,27 +468,6 @@ class StorageClient:
             network_policy_data_yaml = tempfile.NamedTemporaryFile(
                 mode="w+", prefix="network_policy", delete=False
             )
-
-            log.info(f"Updating storageclaim name: {storageclaim_name}")
-            storage_classclaim_data["metadata"]["name"] = storageclaim_name
-
-            log.info(f"Updating storageclient name: {storage_client_name}")
-            storage_classclaim_data["spec"]["storageClient"][
-                "name"
-            ] = storage_client_name
-
-            log.info(f"Updating namespace: {namespace_of_storageclient}")
-            storage_classclaim_data["spec"]["storageClient"][
-                "namespace"
-            ] = namespace_of_storageclient
-
-            log.info(f"Updating storageclaim type: {type}")
-            storage_classclaim_data["spec"]["type"] = type
-
-            # Create storageclassclaim
-            storage_classclaim_data_yaml = tempfile.NamedTemporaryFile(
-                mode="w+", prefix="storage_classclaim", delete=False
-            )
             templating.dump_data_to_temp_yaml(
                 network_policy_data, network_policy_data_yaml.name
             )
@@ -515,6 +542,16 @@ class StorageClient:
         storageclaims, associated storageclasses and storagerequests are created successfully.
 
         """
+        ocs_csv = get_ocs_csv()
+        client_csv_version = ocs_csv.data["spec"]["version"]
+        ocs_version = version.get_ocs_version_from_csv(only_major_minor=True)
+        log.info(
+            f"Check if OCS version: {ocs_version} matches with CSV: {client_csv_version}"
+        )
+        assert (
+            f"{ocs_version}" in client_csv_version
+        ), f"OCS version: {ocs_version} mismatch with CSV version {client_csv_version}"
+
         if self.ocs_version >= version.VERSION_4_16:
             namespace = config.ENV_DATA["cluster_namespace"]
         else:
@@ -524,6 +561,7 @@ class StorageClient:
             kind=constants.STORAGECLIENT,
             namespace=namespace,
         )
+
         storageclient_data = storageclient_obj.get()["items"]
         log.info(f"storageclient data, {storageclient_data}")
         storageclient_name = storageclient_data[0]["metadata"]["name"]
