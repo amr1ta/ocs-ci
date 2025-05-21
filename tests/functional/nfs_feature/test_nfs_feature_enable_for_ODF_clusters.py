@@ -9,7 +9,7 @@ from ocs_ci.utility import nfs_utils
 from ocs_ci.utility.utils import exec_cmd
 from ocs_ci.framework import config
 from ocs_ci.utility.connection import Connection
-from ocs_ci.ocs import constants, ocp, resources
+from ocs_ci.ocs import constants, ocp
 from ocs_ci.utility import templating
 from ocs_ci.helpers import helpers
 from ocs_ci.framework.pytest_customization.marks import brown_squad, skipif_rosa_hcp
@@ -136,15 +136,15 @@ class TestNfsEnable(ManageTest):
         self.pv_obj = ocp.OCP(kind=constants.PV, namespace=self.namespace)
         self.nfs_sc = "ocs-storagecluster-ceph-nfs"
         self.sc = ocs.OCS(kind=constants.STORAGECLASS, metadata={"name": self.nfs_sc})
-        self.retain_nfs_sc_name = "ocs-storagecluster-ceph-nfs-retain"
-        self.retain_nfs_sc = resources.ocs.OCS(
-            kind=constants.STORAGECLASS, metadata={"name": "ocs-storagecluster-cephfs"}
-        )
-        self.retain_nfs_sc.reload()
-        self.retain_nfs_sc.data["reclaimPolicy"] = constants.RECLAIM_POLICY_RETAIN
-        self.retain_nfs_sc.data["metadata"]["name"] = self.retain_nfs_sc_name
-        self.retain_nfs_sc._name = self.retain_nfs_sc.data["metadata"]["name"]
-        self.retain_nfs_sc.create()
+        # self.retain_nfs_sc_name = "ocs-storagecluster-ceph-nfs-retain"
+        # self.retain_nfs_sc = resources.ocs.OCS(
+        #     kind=constants.STORAGECLASS, metadata={"name": "ocs-storagecluster-cephfs"}
+        # )
+        # self.retain_nfs_sc.reload()
+        # self.retain_nfs_sc.data["reclaimPolicy"] = constants.RECLAIM_POLICY_RETAIN
+        # self.retain_nfs_sc.data["metadata"]["name"] = self.retain_nfs_sc_name
+        # self.retain_nfs_sc._name = self.retain_nfs_sc.data["metadata"]["name"]
+        # self.retain_nfs_sc.create()
         platform = config.ENV_DATA.get("platform", "").lower()
         self.run_id = config.RUN.get("run_id")
         self.test_folder = f"mnt/test_nfs_{self.run_id}"
@@ -1176,7 +1176,7 @@ class TestNfsEnable(ManageTest):
             log.info("----creating deployment ---")
             deployment_data = templating.load_yaml(constants.NFS_APP_POD_YAML)
             helpers.create_resource(**deployment_data)
-            time.sleep(60)
+            time.sleep(120)
 
             assert self.pod_obj.wait_for_resource(
                 resource_count=1,
@@ -1275,7 +1275,7 @@ class TestNfsEnable(ManageTest):
 
         finally:
             # Delete deployment
-            cmd_delete_deployment = "delete dc nfs-test-pod"
+            cmd_delete_deployment = "delete deployment nfs-test-pod"
             self.storage_cluster_obj.exec_oc_cmd(cmd_delete_deployment)
 
             pv_obj = nfs_pvc_obj.backed_pv_obj
