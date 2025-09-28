@@ -2368,3 +2368,78 @@ def verify_volsync():
             timeout=600,
         )
     config.switch_ctx(restore_index)
+
+
+def create_offload_sc(
+    storageclass_factory,
+    offloaded_sc_name="test-vr-offloading-sc",
+    offloaded_label="ramendr.openshift.io/offloaded",
+):
+    """
+    Create rbd storageclass with offloaded:true label for both primary and secondary managed clusters
+    """
+    restore_index = config.cur_index
+    managed_clusters = get_non_acm_cluster_config()
+    for cluster in managed_clusters:
+        logger.info("Create a rbd storage class to label with offload enabled")
+        _ = storageclass_factory(
+            sc_name=offloaded_sc_name,
+            interface=constants.CEPHBLOCKPOOL,
+        )
+        logger.info(
+            "Add label for the storageclass with ramendr.openshift.io/offloaded: true"
+        )
+        exec_cmd(f"oc label sc {offloaded_sc_name} {offloaded_label}='true'")
+    config.switch_ctx(restore_index)
+
+
+def verify_offload_enabled_for_thirdparty_drpolicy(
+    switch_ctx=None, offloaded_sc_name="test-vr-offloading-sc"
+):
+    """
+    Verify offload: true is updated for the storage class with offloaded true label
+
+    Args:
+        offloaded_sc (str): Name of the storageclass with offload label
+
+    """
+    restore_index = config.cur_index
+    namespace = constants.GITOPS_CLUSTER_NAMESPACE
+    config.switch_ctx(switch_ctx) if switch_ctx else config.switch_acm_ctx()
+    drpolicy_data = DRPC(namespace=namespace).drpolicy_obj.get()
+    peer_classes = drpolicy_data["status"]["async"]["peerClasses"]
+    assert (
+        offloaded_sc_name in peer_classes
+    ), "Offloaded storageclass is not listed under peerclasses"
+    for peer in peer_classes:
+        if peer.get("storageClassName") == offloaded_sc_name:
+            assert (
+                peer.get("offloaded") == "true"
+            ), "offloded value is not showing for sc labeled with offloaded in drpc"
+    config.switch_ctx(restore_index)
+
+
+def verify_vr_unavailable_for_offloaded_vr(namespace, vr_name):
+    """
+    This method is to validate that vr is not created for offloaded drpolicy
+
+    Args:
+        namespace (str): the namespace of the VR resources
+        vr_name (str): VR name
+    """
+    vr_obj = ocp.OCP(kind=constants.VOLUME_REPLICATION, namespace=namespace)
+    assert vr_obj.check_resource_existence(
+        should_exist=False,
+        resource_name=vr_name,
+    )
+
+
+def create_vr_for_offloaded_vr(namespace):
+    """
+    This method is for creating vr manually for offloaded vr scenario
+
+    Args:
+        namespace (str): the namespace of the VR resources
+    """
+    # vr_obj = ocp.OCP(kind=constants.VOLUME_REPLICATION, namespace=namespace)
+    # DRPC(constants.GITOPS_CLUSTER_NAMESPACE).get_drpc_name()

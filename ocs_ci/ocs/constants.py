@@ -3311,6 +3311,12 @@ DISCOVERED_APPS = "DiscoveredApps"
 DR_OPS_NAMESAPCE = "openshift-dr-ops"
 DPA_DISCOVERED_APPS_PATH = os.path.join(TEMPLATE_DIR, "DR", "dpa_discovered_apps.yaml")
 
+# Agnostic rdr
+TEMPLATE_DR_DIR = os.path.join(TEMPLATE_DIR, "DR")
+TEMPLATE_AGNOSTIC_RDR = os.path.join(TEMPLATE_DR_DIR, "agnostic_rdr")
+VR_PATH = os.path.join(TEMPLATE_AGNOSTIC_RDR, "vr.yaml")
+
+
 DISABLE_DR_EACH_APP = os.path.join(TEMPLATE_DIR, "DR", "disable_dr_each_app.sh")
 REMOVE_DR_EACH_MANAGED_CLUSTER = os.path.join(TEMPLATE_DIR, "DR", "dr_conf_removal.sh")
 CLUSTERSELECTORPATH = "/spec/predicates/0/requiredClusterSelector/labelSelector/matchExpressions/0/values/0"
