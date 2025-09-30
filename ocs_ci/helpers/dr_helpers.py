@@ -19,7 +19,7 @@ from ocs_ci.ocs.exceptions import (
     UnexpectedDeploymentConfiguration,
 )
 from ocs_ci.ocs.ocp import OCP
-from ocs_ci.ocs.resources.drpc import DRPC
+from ocs_ci.ocs.resources.drpc import DRPC, get_drpc_name
 from ocs_ci.ocs.resources.pod import get_all_pods, get_ceph_tools_pod
 from ocs_ci.ocs.resources.pv import get_all_pvs
 from ocs_ci.ocs.resources.pvc import get_all_pvc_objs
@@ -2434,12 +2434,64 @@ def verify_vr_unavailable_for_offloaded_vr(namespace, vr_name):
     )
 
 
-def create_vr_for_offloaded_vr(namespace):
+def verify_vgr_available_and_external_enabled_for_agnostic_rdr(namespace):
+    """
+    This method is to check volumegroup replication is available
+
+    Args:
+        namespace (str): the namespace of the VR resources
+    """
+
+    vgr_obj = ocp.OCP(kind=constants.VOLUME_GROUP_REPLICATION, namespace=namespace)
+    vgr_obj_details = vgr_obj.get()["items"][0]
+    vgr_name = vgr_obj_details["metadata"]["name"]
+    vgr_external_status = vgr_name = vgr_obj_details["spec"]["external"]
+    assert vgr_obj.check_resource_existence(should_exist=True, resource_name=vgr_name)
+    assert vgr_external_status == "true"
+
+
+def create_vr_for_offloaded_vr(namespace, scheduling_interval=5):
     """
     This method is for creating vr manually for offloaded vr scenario
 
     Args:
         namespace (str): the namespace of the VR resources
     """
-    # vr_obj = ocp.OCP(kind=constants.VOLUME_REPLICATION, namespace=namespace)
-    # DRPC(constants.GITOPS_CLUSTER_NAMESPACE).get_drpc_name()
+    vr_obj = ocp.OCP(kind=constants.VOLUME_REPLICATION, namespace=namespace)
+    vrc_objs = ocp.OCP(kind=constants.VOLUME_REPLICATION_CLASS).get()["items"]
+    for vrc_obj in vrc_objs:
+        if scheduling_interval in vrc_obj:
+            vrc_name = vrc_obj["metadata"]["name"]
+    drpc_name = get_drpc_name(namespace=constants.DR_OPS_NAMESAPCE)
+    vr_data = templating.load_yaml(constants.VR_PATH)
+    vr_data["metadata"]["labels"]["ramendr.openshift.io/owner-name"] = drpc_name
+    vr_data["metadata"]["labels"][
+        "ramendr.openshift.io/owner-namespace-name"
+    ] = namespace
+    vr_data["metadata"]["name"] = "offloaded-vr" + namespace
+    vr_data["metadata"]["namespace"] = namespace
+    vr_data["spec"]["volumeReplicationClass"] = vrc_name
+    vr_data_yaml = tempfile.NamedTemporaryFile(mode="w+", prefix="vr", delete=False)
+    templating.dump_data_to_temp_yaml(vr_data, vr_data_yaml.name)
+    run_cmd(f"oc create -f {vr_data_yaml.name}")
+    assert vr_obj.check_resource_existence(
+        should_exist=True,
+        resource_name="offloaded-vr" + namespace,
+    )
+
+
+def update_vr_status_to_vgr(namespace, vgr_name):
+    """
+    This method is to update vr status to vgr
+
+    Args:
+        namespace (str): the namespace of the VR resources
+        vr_name (str): VR name
+
+    """
+    vr_obj = ocp.OCP(kind=constants.VOLUME_REPLICATION, namespace=namespace).get()[
+        "items"
+    ][0]
+    vr_status = vr_obj["status"]
+    vgr_obj = ocp.OCP(kind=constants.VOLUME_GROUP_REPLICATION, namespace=namespace)
+    vgr_obj["status"] = vr_status
