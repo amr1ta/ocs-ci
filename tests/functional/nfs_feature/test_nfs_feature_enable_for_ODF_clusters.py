@@ -167,6 +167,7 @@ class TestNfsEnable(ManageTest):
         """
         self = request.node.cls
         log.info("-----Setup-----")
+        self.nfs_port = None
         self.nfs_app_deployment = "nfs-test-pod"
         self.namespace = config.ENV_DATA["cluster_namespace"]
         self.storage_cluster_obj = ocp.OCP(
@@ -250,6 +251,9 @@ class TestNfsEnable(ManageTest):
                 self.hostname_add = nfs_utils.create_nfs_load_balancer_service(
                     self.storage_cluster_obj,
                 )
+            elif platform == constants.VSPHERE_PLATFORM:
+                self.hostname_add = nfs_utils.create_nfs_nodeport_service()
+                self.nfs_port = constants.NFS_NODEPORT
 
             yield
 
@@ -271,6 +275,8 @@ class TestNfsEnable(ManageTest):
                 nfs_utils.delete_nfs_load_balancer_service(
                     self.storage_cluster_obj,
                 )
+            elif platform == constants.VSPHERE_PLATFORM:
+                nfs_utils.delete_nfs_nodeport_service()
 
     def teardown(self):
         """
@@ -362,6 +368,19 @@ class TestNfsEnable(ManageTest):
                 )
                 nfs_utils.update_etc_hosts_on_nfs_client(con, hostname_add)
         return con
+
+    def _get_mount_options(self):
+        """
+        Build NFS mount options string, including port for NodePort.
+
+        Returns:
+            str: Mount options for the NFS mount command
+
+        """
+        opts = "proto=tcp"
+        if self.nfs_port:
+            opts += f",port={self.nfs_port}"
+        return opts
 
     @tier1
     @polarion_id("OCS-4269")
@@ -565,7 +584,7 @@ class TestNfsEnable(ManageTest):
         retcode, _, _ = self.con.exec_cmd("mkdir -p " + self.test_folder)
         assert retcode == 0
         export_nfs_external_cmd = (
-            "mount -t nfs4 -o proto=tcp "
+            f"mount -t nfs4 -o {self._get_mount_options()} "
             + self.hostname_add
             + ":"
             + share_details
@@ -738,7 +757,7 @@ class TestNfsEnable(ManageTest):
             retcode, _, _ = self.con.exec_cmd("mkdir -p " + self.test_folder)
             assert retcode == 0
             export_nfs_external_cmd = (
-                "mount -t nfs4 -o proto=tcp "
+                f"mount -t nfs4 -o {self._get_mount_options()} "
                 + self.hostname_add
                 + ":"
                 + share_details
@@ -871,7 +890,7 @@ class TestNfsEnable(ManageTest):
         retcode, _, _ = self.con.exec_cmd("mkdir -p " + self.test_folder)
         assert retcode == 0
         export_nfs_external_cmd = (
-            "mount -t nfs4 -o proto=tcp "
+            f"mount -t nfs4 -o {self._get_mount_options()} "
             + self.hostname_add
             + ":"
             + share_details
@@ -1004,7 +1023,7 @@ class TestNfsEnable(ManageTest):
         retcode, _, _ = self.con.exec_cmd("mkdir -p " + self.test_folder)
         assert retcode == 0
         export_nfs_external_cmd = (
-            "mount -t nfs4 -o proto=tcp "
+            f"mount -t nfs4 -o {self._get_mount_options()} "
             + self.hostname_add
             + ":"
             + share_details
@@ -1771,7 +1790,7 @@ class TestNfsEnable(ManageTest):
         retcode, _, _ = self.con.exec_cmd("mkdir -p " + self.test_folder)
         assert retcode == 0
         export_nfs_external_cmd = (
-            "mount -t nfs4 -o proto=tcp "
+            f"mount -t nfs4 -o {self._get_mount_options()} "
             + self.hostname_add
             + ":"
             + share_details

@@ -312,6 +312,70 @@ def delete_nfs_load_balancer_service(
     svc_obj.wait_for_delete(resource_name=svc_name, timeout=300)
 
 
+def create_nfs_nodeport_service():
+    """
+    Create a NodePort service for NFS on platforms without
+    cloud LoadBalancer support (e.g. vSphere).
+
+    Returns:
+        str: Worker node IP to use for NFS mount
+
+    """
+    from ocs_ci.ocs.node import get_nodes
+
+    svc_name = "rook-ceph-nfs-my-nfs-nodeport"
+    log.info("----create NodePort service for NFS----")
+    service = f"""
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: {svc_name}
+              namespace: openshift-storage
+            spec:
+              ports:
+              - name: nfs
+                port: 2049
+                nodePort: {constants.NFS_NODEPORT}
+              type: NodePort
+              selector:
+                app: rook-ceph-nfs
+                ceph_nfs: ocs-storagecluster-cephnfs
+            """
+
+    nfs_service_data = yaml.safe_load(service)
+    svc_ocp = ocp.OCP(
+        kind=constants.SERVICE,
+        namespace=constants.OPENSHIFT_STORAGE_NAMESPACE,
+    )
+    if svc_ocp.is_exist(resource_name=svc_name):
+        log.info("NFS NodePort service already exists, skipping creation")
+    else:
+        helpers.create_resource(**nfs_service_data)
+
+    worker_nodes = get_nodes(node_type=constants.WORKER_MACHINE)
+    node_ip = worker_nodes[0].get()["status"]["addresses"][0]["address"]
+    log.info(f"Using worker node IP for NFS NodePort: {node_ip}")
+    return node_ip
+
+
+def delete_nfs_nodeport_service():
+    """
+    Delete the NFS NodePort service.
+
+    """
+    svc_name = "rook-ceph-nfs-my-nfs-nodeport"
+    namespace = constants.OPENSHIFT_STORAGE_NAMESPACE
+
+    svc_obj = ocp.OCP(kind=constants.SERVICE, namespace=namespace)
+    if not svc_obj.is_exist(resource_name=svc_name):
+        log.info(f"NFS NodePort service {svc_name} does not exist, " f"skipping delete")
+        return
+
+    log.info(f"Deleting NFS NodePort service {svc_name}")
+    svc_obj.delete(resource_name=svc_name)
+    svc_obj.wait_for_delete(resource_name=svc_name, timeout=120)
+
+
 def skip_test_if_nfs_client_unavailable(nfs_client_ip):
     """
     Skip the tests if a valid nfs client ip is not
